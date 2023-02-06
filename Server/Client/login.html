@@ -1,0 +1,73 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />    
+    <link rel='stylesheet' href='../public/stylesheets/login.css' />
+    <title>Log-In</title>
+  </head>
+  <body>
+
+    <div id = "loginH1">
+        <h1>Login</h1>
+    </div>
+
+    <div class="input-container">
+      <label for="lusername">Username</label>
+      <input type="text" id="lusername">
+    
+      <label for="lemail">Email</label>
+      <input type="text" id="lemail">
+      
+      <h6 id="errormessage"></h6>
+
+      <button onclick="login()">Login</button>
+    </div>
+    
+         
+    <script>
+      const url = "http://localhost:8888/auth/login";
+
+      const applyXSSprotection = function (string) {
+        return string.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      };
+
+      const login = async () => {
+
+        const loginData = {
+          username: applyXSSprotection(
+            document.getElementById("lusername").value
+          ),
+          email: applyXSSprotection(document.getElementById("lemail").value),
+        };
+
+        try {
+          const resp = await fetch(url, {
+            method: "post",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(loginData),
+          });
+
+          const data = await resp.json();
+          sessionStorage["token"] = data.token;          
+
+          if (data.token) 
+          {
+              if(data.isUserAllowed)
+              {                
+                window.location.href = "./home.html";
+              }
+              else
+              {                                      
+                document.getElementById("errormessage").innerText = "You don't have any credits for today.";
+              }
+          }
+        } 
+        catch (err) 
+        {
+            document.getElementById("errormessage").innerText = "Invalid username or email.";
+        }
+      };
+    </script>
+  </body>
+</html>

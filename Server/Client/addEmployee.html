@@ -1,0 +1,132 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel='stylesheet' href='../public/stylesheets/style.css' />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+      integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+      crossorigin="anonymous"
+    />
+    <title>Add Employee</title>
+  </head>
+  <body onload="getData()">
+    <script>
+      const getData = async () => {
+        const token = sessionStorage["token"];
+        
+        const departmentsUrl = "http://localhost:8888/departments/";      
+        const resp = await fetch(departmentsUrl, {
+          method: "get",
+          headers: { "x-access-token": token}
+        });
+        const data = await resp.json();
+        const currentUserFullName = data.currentUserFullName;
+        renderCurrentUserFullName(currentUserFullName);
+        renderCreditNum(data.creditNum);
+        renderDepartmentOptions(data.allDepartments);
+
+        const form = document.getElementById("myForm");
+        const cancelButton = document.getElementById("cancel-button");
+
+        form.addEventListener("submit", async function (event) {
+          const firstName = document.getElementById("fname").value;
+          const lastName = document.getElementById("lname").value;
+          const selectedDepartment =
+            document.getElementById("mySelectDepartment").value;
+          const startWorkYear = document.getElementById("lstartworkyear").value;
+
+          event.preventDefault();
+          const employeeObjToSend = {
+            First_Name: firstName,
+            Last_Name: lastName,
+            Start_Work_Year: parseInt(startWorkYear),
+            DepartmentID: selectedDepartment,
+          };
+
+          const employeesUrl = "http://localhost:8888/employees/";      
+          const resp = await fetch(employeesUrl, {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json",
+              "x-access-token": token              
+            },
+            body: JSON.stringify(employeeObjToSend)
+          });
+          if(resp){
+            console.log(resp);
+            window.location.href = "./employees.html";
+          }
+        });
+
+        cancelButton.addEventListener("click", async function (event) {
+          window.location.href = "./employees.html";
+        });
+
+      };
+
+      const renderCurrentUserFullName = (currentUserFullName) => {
+        //------ Rendering Logged-In User Full Name
+        let userFullNameDomElement = document.createElement("div");
+        userFullNameDomElement.classList.add("class_list");
+        const h4 = document.createElement("h4");
+        h4.textContent = "Welcome, " + currentUserFullName;
+        userFullNameDomElement.appendChild(h4);
+        document.body.appendChild(userFullNameDomElement);
+      };
+
+      const renderCreditNum = (creditNum) => {
+        const creditNumDomElement = document.createElement("div");
+        creditNumDomElement.classList.add("credit-num");
+        creditNumDomElement.textContent = `Your credits: ${creditNum}`;
+        document.body.appendChild(creditNumDomElement);
+      };
+      
+      const renderDepartmentOptions = (departments) =>
+        {
+          const select = document.getElementById("mySelectDepartment");
+          departments.forEach( (department) => {
+            const option = document.createElement("option");
+            option.value = department._id;
+            option.text = department.Name;
+            select.add(option);
+          });
+        }
+
+      //-----------------
+      const redirectToLoginPage = () => {
+        window.location.href = "./login.html";
+      };
+      const redirectToHomePage = () => {
+        window.location.href = "./home.html";
+      };
+    </script>
+    <form id="myForm">
+      <h4>Add new employee</h4>
+      <br/>
+      <label for="fname">First Name</label>
+      <input type="text" id="fname" name="fname" />
+      <br /><br />
+      <label for="lname">Last Name</label>
+      <input type="text" id="lname" name="lname" />
+      <br /><br />
+      <label for="ldepartment">Department</label>
+      <br />
+      <select id="mySelectDepartment" name="mySelectDepartment"></select>
+      <br /><br />
+      <label for="lstartworkyear">Start Work Year</label>
+      <input type="text" id="lstartworkyear" name="lstartworkyear" />
+      <br /><br />
+      <input type="submit" value="Save" />      
+      <button type="button" id="cancel-button">Cancel</button>
+    </form>
+    <br/>
+    <!-- Create Log Out and Log in buttons  -->
+    <button type="button" class="button" onclick="redirectToLoginPage()">Log-Out</button>
+    <button type="button" class="button" onclick="redirectToHomePage()">
+      Home
+    </button>
+  </body>
+</html>

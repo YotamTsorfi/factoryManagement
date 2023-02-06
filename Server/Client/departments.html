@@ -1,0 +1,238 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel='stylesheet' href='../public/stylesheets/style.css' />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+      integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+      crossorigin="anonymous"
+    />
+    <title>Departments</title>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+  </head>
+  <body onload="getDepartmentsAndEmployees()">
+    <script>
+      const getDepartmentsAndEmployees = async () => {
+        const url = "http://localhost:8888/departments/employees";
+        const token = sessionStorage["token"];
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: { "x-access-token": token },
+        });
+        const dataFromRouter = await resp.json();
+   
+        if(dataFromRouter.creditNum === 0){
+          swal("You don't have any credits for today. Please contact the administrator for more information.")
+          .then( () => {
+            window.location.href = "./login.html";          
+          });
+        }
+
+        //Show the credit number 
+        const currentUserFullName = dataFromRouter.currentUserFullName;
+        renderCurrentUserFullName(currentUserFullName);
+        renderCreditNum(dataFromRouter.creditNum);
+        sessionStorage["currentUserFullName"] = currentUserFullName;
+        
+        renderDepartmentsTable(
+          dataFromRouter.allDepartments,
+          dataFromRouter.allEmployees,
+          currentUserFullName
+        );
+
+      };
+
+      const renderCurrentUserFullName = (currentUserFullName) => {
+        //------ Rendering Logged-In User Full Name
+        let userFullNameDomElement = document.createElement("div");
+        userFullNameDomElement.classList.add("class_list");
+        const h4 = document.createElement("h4");
+        h4.textContent = "Welcome, " + currentUserFullName;
+        userFullNameDomElement.appendChild(h4);
+        document.body.appendChild(userFullNameDomElement);
+      };
+      
+      const renderCreditNum = (creditNum) => {
+        const creditNumDomElement = document.createElement("div");
+        creditNumDomElement.classList.add("credit-num");
+        creditNumDomElement.textContent = `Your credits: ${creditNum}`;
+        document.body.appendChild(creditNumDomElement);
+       };
+
+      //--------------------------------------------------------
+      const renderDepartmentsTable = (
+        departmentsObj,
+        employeesObj,
+        currentUserFullName
+      ) => {
+        let body = document.getElementById("tDepartmentBody");
+
+        departmentsObj.forEach((department) => {
+          let trObj = document.createElement("tr");
+          let tdDepartment = document.createElement("td");
+          let departmentLink = document.createElement("a");
+
+          const departmentHeaderText = department.Name;
+          departmentLink.setAttribute("href", "./editDepartment.html");
+          departmentLink.setAttribute(
+            "onclick",
+            `sendDepartmentData({departmentId : "${department._id}"})`
+          );
+          departmentLink.appendChild(
+            document.createTextNode(departmentHeaderText)
+          );
+          tdDepartment.appendChild(departmentLink);
+          let tdManager = document.createElement("td");
+          employeesObj.forEach((emp) => {
+            if (emp._id == department.Manager) {
+              tdManager.textContent = emp.First_Name + " " + emp.Last_Name;
+            }
+          });
+          trObj.appendChild(tdDepartment);
+          trObj.appendChild(tdManager);
+
+          //find employees belnoging to this department
+          const listOfEmployeesToRender = employeesObj.filter(
+            (emp) => emp.DepartmentID == department._id
+          );
+
+          //Render the empployees (name + link to edit)
+          let tdEmlpoyees = document.createElement("td");
+          let ul = document.createElement("ul");
+
+          listOfEmployeesToRender.forEach((emp) => {
+            let li = document.createElement("li");
+            let employeeLink = document.createElement("a");
+            const employeeHeaderText = emp.First_Name + " " + emp.Last_Name;
+            employeeLink.setAttribute("href", "./editEmployee.html");
+            employeeLink.setAttribute(
+              "onclick",
+              `sendEmployeeData({employeeId : "${emp._id}"})`
+            );
+            employeeLink.appendChild(
+              document.createTextNode(employeeHeaderText)
+            );
+            li.appendChild(employeeLink);
+            ul.appendChild(li);
+          });
+
+          tdEmlpoyees.appendChild(ul);
+          trObj.appendChild(tdEmlpoyees);
+
+          body.appendChild(trObj);
+        });
+      };
+
+      //-----------------------------------------
+      const sendDepartmentData = async (dataObject) => {
+        sessionStorage["departmentId"] = dataObject.departmentId;
+
+        const url =
+          "http://localhost:8888/departments/" + dataObject.departmentId;
+        const token = sessionStorage["token"];
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: {
+            "x-access-token": token,
+            "department-id": dataObject.departmentId,
+          },
+        });
+
+        //Check the respond for user credits
+        if(resp.creditNum === 0){
+          swal("You don't have any credits for today. Please contact the administrator for more information.")
+          .then( () => {
+            window.location.href = "./login.html";          
+          });
+        }
+
+      };
+
+      //-----------------------------------------
+      const sendEmployeeData = async (dataObject) => {
+        sessionStorage["employeeId"] = dataObject.employeeId;
+
+        const url = "http://localhost:8888/employees/" + dataObject.employeeId;
+        const token = sessionStorage["token"];
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: {
+            "x-access-token": token,
+            "employee-id": dataObject.employeeId,
+          },
+        });
+
+        //Check the respond for user credits
+          if(resp.creditNum === 0){
+          swal("You don't have any credits for today. Please contact the administrator for more information.")
+          .then( () => {
+            window.location.href = "./login.html";          
+          });
+        }
+
+      };
+      //-----------------------------------------
+      const redirectToLoginPage = () => {
+        window.location.href = "./login.html";
+      };
+
+      const redirectToAddDepartmentPage = () => {
+        window.location.href = "./addDepartment.html";
+      };
+      const redirectToEmployeesPage = () => {
+        window.location.href = "./employees.html";
+      };
+      const redirectToShiftsPage = () => {
+        window.location.href = "./shifts.html";
+      };
+      const redirectToUsersPage = () => {
+        window.location.href = "./users.html";
+      };
+      const redirectToHomePage = () => {
+        window.location.href = "./home.html";
+      };
+      //-----------------------------------------
+    </script>
+    
+    <table class="table table-striped table-bordered">
+      <thead>
+        <tr>
+          <th scope="col">Department name</th>
+          <th scope="col">Manager</th>
+          <th scope="col">Employees</th>
+        </tr>
+      </thead>
+      <tbody id="tDepartmentBody"></tbody>
+    </table>
+
+    <!-- Create Log Out and Log in buttons  -->
+    <button type="button" class="button" onclick="redirectToLoginPage()">
+      Log-Out
+    </button>
+    <button
+      type="button"
+      class="button"
+      onclick="redirectToAddDepartmentPage()"
+    >
+      New Department
+    </button>
+    <button type="button" class="button" onclick="redirectToEmployeesPage()">
+      Employees
+    </button>
+    <button type="button" class="button" onclick="redirectToShiftsPage()">
+      Shifts
+    </button>
+    <button type="button" class="button" onclick="redirectToUsersPage()">
+      Users
+    </button>
+    <button type="button" class="button" onclick="redirectToHomePage()">
+      Home
+    </button>
+  </body>
+</html>

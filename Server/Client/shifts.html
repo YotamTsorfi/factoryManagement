@@ -1,0 +1,413 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../public/stylesheets/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+      integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+      crossorigin="anonymous"
+    />
+    <title>Shifts</title>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+  </head>
+  <body onload="getShiftsAndEmployees()">
+    <script>
+      const getShiftsAndEmployees = async () => {
+        const url = "http://localhost:8888/shifts/employees";
+        const token = sessionStorage["token"];
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: { "x-access-token": token },
+        });
+        const dataFromRouter = await resp.json();
+        const currentUserFullName = dataFromRouter.currentUserFullName;
+
+        if (dataFromRouter.creditNum === 0) {
+          swal(
+            "You don't have any credits for today. Please contact the administrator for more information."
+          ).then(() => {
+            window.location.href = "./login.html";
+          });
+        }
+
+        renderCreditNum(dataFromRouter.creditNum);
+        renderEmloyeesCheckboxes(dataFromRouter.allEmployees);
+        renderCurrentUserFullName(currentUserFullName);
+
+        const select = document.getElementById("mySelectShift");
+
+        try {
+          dataFromRouter.allShifts.forEach(function (shift) {
+            const option = document.createElement("option");
+            option.value = shift._id;
+
+            if (
+              shift.Date != null ||
+              shift.Starting_Hour ||
+              shift.Ending_Hour
+            ) {
+              option.text =
+                shift.Date.slice(0, 10) +
+                ", " +
+                "From " +
+                shift.Starting_Hour +
+                ":00 " +
+                "To " +
+                shift.Ending_Hour +
+                ":00";
+            } else {
+              option.text = shift._id;
+            }
+
+            select.add(option);
+          });
+        } catch (err) {
+          console.error(err);
+        }
+
+        //------ Insert selected shift data to the form inputs
+        const selected = document.getElementById("mySelectShift");
+        selected.addEventListener("change", function () {
+          let body = document.getElementById("tBody");
+          body.innerHTML = "";
+          const selectedOption = select.value;
+
+          let chosenShiftObj = dataFromRouter.allShifts.filter(
+            (shift) => shift._id == selectedOption
+          )[0];
+
+          renderShiftAndEmloyees(chosenShiftObj, dataFromRouter.allEmployees);
+        });
+
+        const renderShiftAndEmloyees = (chosenShiftObj, allEmployees) => {
+          const form = document.getElementById("myForm");
+          const inputs = form.elements;
+
+          let date = new Date(chosenShiftObj.Date);
+          inputs.startDate.value = date.toISOString().substring(0, 10);
+          inputs.startinghour.value = chosenShiftObj.Starting_Hour;
+          inputs.endinghour.value = chosenShiftObj.Ending_Hour;
+
+          //Render employees
+          let body = document.getElementById("tBody");
+
+          allEmployees.map((emp) => {
+            let trObj = document.createElement("tr");
+            let tdEmployeeFullName = document.createElement("td");
+            tdEmployeeFullName.textContent =
+              emp.First_Name + " " + emp.Last_Name;
+
+            let tdcheckbox = document.createElement("td");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.value = emp._id;
+            tdcheckbox.appendChild(checkbox);
+
+            chosenShiftObj.Employees.forEach((employeeId) => {
+              if (emp._id == employeeId) {
+                checkbox.checked = true;
+              } else {
+                checkbox.title = "Check to allocate the employee.";
+              }
+            });
+            trObj.appendChild(tdcheckbox);
+            trObj.appendChild(tdEmployeeFullName);
+            body.appendChild(trObj);
+          });
+
+          form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            const checkedValues = [];
+            const checkboxes = form.querySelectorAll(
+              "input[type='checkbox']:checked"
+            );
+            for (let i = 0; i < checkboxes.length; i++) {
+              checkedValues.push(checkboxes[i].value);
+            }
+
+            const Date = document.getElementById("startDate").value;
+            const startinghour = document.getElementById("startinghour").value;
+            const endinghour = document.getElementById("endinghour").value;
+            const shiftId = document.getElementById("mySelectShift").value;
+
+            //Send and reload the page
+            const url = "http://localhost:8888/shifts/update/" + shiftId;
+            const token = sessionStorage["token"];
+
+            const data = {
+              _id: shiftId,
+              obj: {
+                Date,
+                Starting_Hour: startinghour,
+                Ending_Hour: endinghour,
+                Employees: checkedValues,
+              },
+            };
+
+            const resp = await fetch(url, {
+              method: "post",
+              headers: {
+                "x-access-token": token,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(data),
+            });
+            if (resp) {
+              //Check the respond for user credits
+              if (resp.creditNum === 0) {
+                swal(
+                  "You don't have any credits for today. Please contact the administrator for more information."
+                ).then(() => {
+                  window.location.href = "./login.html";
+                });
+              }
+
+              window.location.reload();
+            }
+          });
+        };
+      };
+
+      const renderCurrentUserFullName = (currentUserFullName) => {
+        //------ Rendering Logged-In User Full Name
+        let userFullNameDomElement = document.createElement("div");
+        userFullNameDomElement.classList.add("class_list");
+        const h4 = document.createElement("h4");
+        h4.textContent = "Welcome, " + currentUserFullName;
+        userFullNameDomElement.appendChild(h4);
+        document.body.appendChild(userFullNameDomElement);
+      };
+
+      const renderCreditNum = (creditNum) => {
+        const creditNumDomElement = document.createElement("div");
+        creditNumDomElement.classList.add("credit-num");
+        creditNumDomElement.textContent = `Your credits: ${creditNum}`;
+        document.body.appendChild(creditNumDomElement);
+      };
+
+      const renderEmloyeesCheckboxes = (employees) => {
+        let body = document.getElementById("tNewShiftBody");
+        employees.map((emp) => {
+          let trObj = document.createElement("tr");
+          let tdEmployeeFullName = document.createElement("td");
+          tdEmployeeFullName.textContent = emp.First_Name + " " + emp.Last_Name;
+
+          let tdcheckbox = document.createElement("td");
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.value = emp._id;
+          checkbox.title = "Check to allocate the employee.";
+          tdcheckbox.appendChild(checkbox);
+
+          trObj.appendChild(tdcheckbox);
+          trObj.appendChild(tdEmployeeFullName);
+          body.appendChild(trObj);
+        });
+
+        //EventListener
+        const form = document.getElementById("myNewShiftForm");
+        const inputs = form.elements;
+
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          const checkedValues = [];
+          const checkboxes = form.querySelectorAll(
+            "input[type='checkbox']:checked"
+          );
+          for (let i = 0; i < checkboxes.length; i++) {
+            checkedValues.push(checkboxes[i].value);
+          }
+
+          try {
+            dateValue = document.getElementById("startDatenewshift").value;
+            const date = dateValue
+              ? dateValue
+              : new Date().toISOString().slice(0, 10);
+
+            const startinghourValue = document.getElementById(
+              "startinghournewshift"
+            ).value;
+            const startinghour = startinghourValue ? startinghourValue : 0;
+
+            const endinghourValue =
+              document.getElementById("endinghournewshift").value;
+            const endinghour = endinghourValue ? endinghourValue : 0;
+
+            //Send and reload the page
+            const url = "http://localhost:8888/shifts/";
+            const token = sessionStorage["token"];
+
+            const obj = {
+              Date: date,
+              Starting_Hour: startinghour,
+              Ending_Hour: endinghour,
+              Employees: checkedValues,
+            };
+
+            const resp = await fetch(url, {
+              method: "post",
+              headers: {
+                "x-access-token": token,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(obj),
+            });
+            if (resp) {
+              //Check the respond for user credits
+              if (resp.creditNum === 0) {
+                swal(
+                  "You don't have any credits for today. Please contact the administrator for more information."
+                ).then(() => {
+                  window.location.href = "./login.html";
+                });
+              }
+
+              window.location.reload();
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        });
+      };
+
+      //-----------------------------------------
+      const redirectToLoginPage = () => {
+        window.location.href = "./login.html";
+      };
+      const redirectToAddDepartmentPage = () => {
+        window.location.href = "./addDepartment.html";
+      };
+      const redirectToEmployeesPage = () => {
+        window.location.href = "./employees.html";
+      };
+      const redirectToShiftsPage = () => {
+        window.location.href = "./shifts.html";
+      };
+      const redirectToDepartmentsPage = () => {
+        window.location.href = "./departments.html";
+      };
+      const redirectToUsersPage = () => {
+        window.location.href = "./users.html";
+      };
+      const redirectToHomePage = () => {
+        window.location.href = "./home.html";
+      };
+      //-----------------------------------------
+    </script>
+
+    <form id="myForm">
+      <select id="mySelectShift">
+        <option value="">Shift</option>
+      </select>
+      <br />
+      <br />
+      <h4>Edit Shift</h4>
+      <br />
+      <label for="startDate">Date</label>
+      <input type="date" id="startDate" name="startDate" />
+      <br /><br />
+      <label for="startinghour">Starting Hour</label>
+      <input
+        type="number"
+        id="startinghour"
+        name="startinghour"
+        min="0"
+        max="24"
+        title="Enter Hour in Format of HH (24)"
+      />
+      <br /><br />
+      <label for="endinghour">Ending Hour</label>
+      <input
+        type="number"
+        id="endinghour"
+        name="endinghour"
+        min="0"
+        max="24"
+        title="Enter Hour in Format of HH (24)"
+      />
+      <br />
+
+      <table class="table table-striped table-bordered">
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col">Employees</th>
+          </tr>
+        </thead>
+        <tbody id="tBody"></tbody>
+      </table>
+
+      <input type="submit" value="Update" />
+    </form>
+
+    <form id="myNewShiftForm">
+      <h4>Add new shift</h4>
+      <br />
+      <label for="startDatenewshift">Date</label>
+      <input type="date" id="startDatenewshift" name="startDatenewshift" />
+      <br /><br />
+      <label for="startinghournewshift">Starting Hour</label>
+      <input
+        type="number"
+        id="startinghournewshift"
+        name="startinghournewshift"
+        min="0"
+        max="24"
+        title="Enter Hour in Format of HH (24)"
+      />
+      <br /><br />
+      <label for="endinghournewshift">Ending Hour</label>
+      <input
+        type="number"
+        id="endinghournewshift"
+        name="endinghournewshift"
+        min="0"
+        max="24"
+        title="Enter Hour in Format of HH (24)"
+      />
+      <br />
+      <table class="table table-striped table-bordered">
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col">Employees</th>
+          </tr>
+        </thead>
+        <tbody id="tNewShiftBody"></tbody>
+      </table>
+      <input type="submit" value="Save" />
+    </form>
+
+    <br />
+    <!-- Create Log Out and Log in buttons  -->
+    <button type="button" class="button" onclick="redirectToLoginPage()">
+      Log-Out
+    </button>
+    <button
+      type="button"
+      class="button"
+      onclick="redirectToAddDepartmentPage()"
+    >
+      New Department
+    </button>
+    <button type="button" class="button" onclick="redirectToDepartmentsPage()">
+      Departments
+    </button>
+    <button type="button" class="button" onclick="redirectToEmployeesPage()">
+      Employees
+    </button>
+    <button type="button" class="button" onclick="redirectToShiftsPage()">
+      Shifts
+    </button>
+    <button type="button" class="button" onclick="redirectToUsersPage()">
+      Users
+    </button>
+    <button type="button" class="button" onclick="redirectToHomePage()">
+      Home
+    </button>
+  </body>
+</html>

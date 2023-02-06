@@ -1,0 +1,104 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../public/stylesheets/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+      integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+      crossorigin="anonymous"
+    />
+    <title>Add Department</title>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+  </head>
+  <body onload="getData()">
+    <script>
+      const getData = async () => {
+        const token = sessionStorage["token"];
+        const currentUserFullName = sessionStorage["currentUserFullName"];
+
+        renderCurrentUserFullName(currentUserFullName);
+
+        const form = document.getElementById("myForm");
+        const cancelButton = document.getElementById("cancel-button");
+
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault();
+
+          const departmentName = document.getElementById("lname").value;
+
+          const departmentObjToSend = {
+            Name: departmentName,
+            Manager: "",
+          };
+
+          const departmentsUrl = "http://localhost:8888/departments/";
+
+          const resp = await fetch(departmentsUrl, {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json",
+              "x-access-token": token,
+            },
+            body: JSON.stringify(departmentObjToSend),
+          });
+          if (resp) 
+          {
+            //Check credit from resp
+            if (resp.creditNum === 0) 
+            {
+              swal(
+                "You don't have any credits for today. Please contact the administrator for more information."
+              ).then(() => {
+                window.location.href = "./login.html";
+              });
+            }
+            window.location.href = "./departments.html";
+          }
+        });
+
+        cancelButton.addEventListener("click", async function (event) {
+          window.location.href = "./departments.html";
+        });
+      };
+
+      const renderCurrentUserFullName = (currentUserFullName) => {
+        //------ Rendering Logged-In User Full Name
+        let userFullNameDomElement = document.createElement("div");
+        userFullNameDomElement.classList.add("class_list");
+        const h4 = document.createElement("h4");
+        h4.textContent = "Welcome, " + currentUserFullName;
+        userFullNameDomElement.appendChild(h4);
+        document.body.appendChild(userFullNameDomElement);
+      };
+      //-----------------
+      const redirectToLoginPage = () => {
+        window.location.href = "./login.html";
+      };
+      const redirectToHomePage = () => {
+        window.location.href = "./home.html";
+      };
+    </script>
+    <form id="myForm">
+      <h4>Add new department</h4>
+      <br />
+      <label for="lname">Name</label>
+      <br />
+      <input type="text" id="lname" name="lname" />
+      <br /><br />
+
+      <input type="submit" value="Save" />
+      <button type="button" id="cancel-button">Cancel</button>
+    </form>
+    <br/>
+    <!-- Create Log Out and Log in buttons  -->
+    <button type="button" class="button" onclick="redirectToLoginPage()">
+      Log-Out
+    </button>
+    <button type="button" class="button" onclick="redirectToHomePage()">
+      Home
+    </button>
+  </body>
+</html>

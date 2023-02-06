@@ -1,0 +1,91 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../public/stylesheets/home.css" />
+    <title>Home</title>
+  </head>
+
+  <body onload="onLoadFunc()">
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+
+    <script>
+      const onLoadFunc = async () => 
+      {
+        const url = "http://localhost:8888/auth/userstatus";
+        const token = sessionStorage["token"];
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: { "x-access-token": token },
+        });
+
+        const dataFromRouter = await resp.json();
+        
+        if (dataFromRouter.creditNum === 0) {
+          swal(
+            "You don't have any credits for today. Please contact the administrator for more information."
+            ).then(() => {
+              window.location.href = "./login.html";
+            });
+          }
+          
+          renderCurrentUserFullName(dataFromRouter.currentUserFullName);
+          renderCreditNum(dataFromRouter.creditNum);
+      };
+
+      const renderCurrentUserFullName = (currentUserFullName) => {
+        //------ Rendering Logged-In User Full Name
+        let userFullNameDomElement = document.createElement("div");
+        userFullNameDomElement.classList.add("class_list");
+        const h4 = document.createElement("h4");
+        h4.textContent = "Welcome, " + currentUserFullName;
+        userFullNameDomElement.appendChild(h4);
+        document.body.appendChild(userFullNameDomElement);
+      };
+
+      const renderCreditNum = (creditNum) => {
+        const creditNumDomElement = document.createElement("div");
+        creditNumDomElement.classList.add("credit-num");
+        creditNumDomElement.textContent = `Your credits: ${creditNum}`;
+        document.body.appendChild(creditNumDomElement);
+       };
+
+      //-----------------------------------------
+      const redirectToLoginPage = () => {
+        window.location.href = "./login.html";
+      };
+      const redirectToEmployeesPage = () => {
+        window.location.href = "./employees.html";
+      };
+      const redirectToShiftsPage = () => {
+        window.location.href = "./shifts.html";
+      };
+      const redirectToDepartmentsPage = () => {
+        window.location.href = "./departments.html";
+      };
+      const redirectToUsersPage = () => {
+        window.location.href = "./users.html";
+      };
+      //-----------------------------------------
+    </script>
+
+    <!-- Create Log Out and Log in buttons  -->
+    <button type="button" class="button" onclick="redirectToLoginPage()">
+      Log-Out
+    </button>
+    <button type="button" class="button" onclick="redirectToEmployeesPage()">
+      Employees
+    </button>
+    <button type="button" class="button" onclick="redirectToDepartmentsPage()">
+      Departments
+    </button>
+    <button type="button" class="button" onclick="redirectToShiftsPage()">
+      Shifts
+    </button>
+    <button type="button" class="button" onclick="redirectToUsersPage()">
+      Users
+    </button>
+  </body>
+</html>

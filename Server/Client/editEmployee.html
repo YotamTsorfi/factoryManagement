@@ -1,0 +1,283 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../public/stylesheets/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+      integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+      crossorigin="anonymous"
+    />
+    <title>Employee</title>
+    <link rel="stylesheet" href="../public/stylesheets/style.css" />
+  </head>
+  <body onload="getData()">
+    <script>
+      const getData = async () => {
+        const token = sessionStorage["token"];
+        const employeeId = sessionStorage["employeeId"];
+
+        const url =
+          "http://localhost:8888/employees/shiftsanddepartments/" + employeeId;
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: { "x-access-token": token, "employee-id": employeeId },
+        });
+        const dataFromRouter = await resp.json();
+
+        if (dataFromRouter.creditNum === 0) {
+          swal(
+            "You don't have any credits for today. Please contact the administrator for more information."
+          ).then(() => {
+            window.location.href = "./login.html";
+          });
+        }
+
+        const currentUserFullName = dataFromRouter.currentUserFullName;
+        renderCurrentUserFullName(currentUserFullName);
+        renderCreditNum(dataFromRouter.creditNum);
+
+        renderShifts(dataFromRouter.allShifts, employeeId, currentUserFullName);
+
+        renderEmloyeeData(
+          dataFromRouter.employeeData,
+          dataFromRouter.allDepartments
+        );
+
+        const form = document.getElementById("myEditEmployeeForm");
+        const deleteButton = document.getElementById("delete-button");
+
+        form.addEventListener("submit", async function (event) {
+          const firstName = document.getElementById("fname").value;
+          const lastName = document.getElementById("lname").value;
+          const selectedDepartment =
+            document.getElementById("mySelectDepartment").value;
+          const startWorkYear = document.getElementById("lstartworkyear").value;
+          event.preventDefault();
+          const employeeObjToSend = {
+            First_Name: firstName,
+            Last_Name: lastName,
+            Start_Work_Year: parseInt(startWorkYear),
+            DepartmentID: selectedDepartment,
+          };
+
+          // http://localhost:8888/employees/id
+          const employeeUrl = 'http://localhost:8888/employees/' + employeeId;
+          const resp = await fetch(employeeUrl, {
+            method: "put",
+            headers: {
+              "Content-Type": "application/json",
+              "x-access-token": token,
+              "employee-id": employeeId,
+              "chosen-deparment-id": selectedDepartment,
+            },
+            body: JSON.stringify(employeeObjToSend),
+          });
+
+          if (resp.creditNum === 0) {
+            swal(
+              "You don't have any credits for today. Please contact the administrator for more information."
+            ).then(() => {
+              window.location.href = "./login.html";
+            });
+          }
+
+          window.location.href = "./employees.html";
+        });
+
+        deleteButton.addEventListener("click", async function (event) {
+          event.preventDefault();
+          const employeeUrl = 'http://localhost:8888/employees/' + employeeId;
+          const resp = await fetch(employeeUrl, {
+            method: "delete",
+            headers: {
+              "x-access-token": token,
+              "employee-id": employeeId,
+            },
+          });
+          if (resp.creditNum === 0) {
+            swal(
+              "You don't have any credits for today. Please contact the administrator for more information."
+            ).then(() => {
+              window.location.href = "./login.html";
+            });
+          }
+
+
+          window.location.href = "./employees.html";
+        });
+
+      };
+
+      const renderCurrentUserFullName = (currentUserFullName) => {
+        //------ Rendering Logged-In User Full Name
+        let userFullNameDomElement = document.createElement("div");
+        userFullNameDomElement.classList.add("class_list");
+        const h4 = document.createElement("h4");
+        h4.textContent = "Welcome, " + currentUserFullName;
+        userFullNameDomElement.appendChild(h4);
+        document.body.appendChild(userFullNameDomElement);
+      };
+
+      const renderCreditNum = (creditNum) => {
+        const creditNumDomElement = document.createElement("div");
+        creditNumDomElement.classList.add("credit-num");
+        creditNumDomElement.textContent = `Your credits: ${creditNum}`;
+        document.body.appendChild(creditNumDomElement);
+       };
+       
+
+      //------ Rendering employee data
+      const renderEmloyeeData = (employeeData, departmentsData) => {
+        const form = document.getElementById("myEditEmployeeForm");
+        const inputs = form.elements;
+
+        inputs.fname.value = employeeData.First_Name;
+        inputs.lname.value = employeeData.Last_Name;
+        inputs.lstartworkyear.value = employeeData.Start_Work_Year;
+
+        const select = document.getElementById("mySelectDepartment");
+        departmentsData.forEach((department) => {
+          const option = document.createElement("option");
+          option.value = department._id;
+          option.text = department.Name;
+          if (department._id == employeeData.DepartmentID) {
+            option.selected = true;
+          }
+          select.add(option);
+        });
+      };
+
+      //------ Rendering the employee shift Table
+      const renderShifts = (shiftsObj, employeeId, currentUserFullName) => {
+        let body = document.getElementById("tBody");
+        shiftsObj.map((shift) => {
+          let trObj = document.createElement("tr");
+          let tdShiftDate = document.createElement("td");
+          tdShiftDate.textContent = shift.Date.slice(0, 10);
+
+          let tdShiftStartingHour = document.createElement("td");
+          tdShiftStartingHour.textContent = shift.Starting_Hour + ":00";
+
+          let tdShiftEndingHour = document.createElement("td");
+          tdShiftEndingHour.textContent = shift.Ending_Hour + ":00";
+
+          let tdcheckbox = document.createElement("td");
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.value = shift._id;
+          tdcheckbox.appendChild(checkbox);
+
+          checkbox.addEventListener("change", async (event) => {
+            if (event.target.checked) {
+              const url = "http://localhost:8888/shifts/" + event.target.value;
+              const token = sessionStorage["token"];
+
+              const data = {
+                shift_id: event.target.value,
+                shift_field: "Employees",
+                employee_id: employeeId,
+              };
+
+              const resp = await fetch(url, {
+                method: "post",
+                headers: {
+                  "x-access-token": token,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
+              });
+
+              if (resp) {
+                window.location.reload();
+              }
+            }
+          });
+
+          if (shift.Employees.includes(employeeId)) {
+            checkbox.checked = true;
+            checkbox.disabled = true;
+          } else {
+            tdShiftDate.style.color = "red";
+            tdShiftStartingHour.style.color = "red";
+            tdShiftEndingHour.style.color = "red";
+            checkbox.title = "Check to register this shift.";
+          }
+          trObj.appendChild(tdcheckbox);
+          trObj.appendChild(tdShiftDate);
+          trObj.appendChild(tdShiftStartingHour);
+          trObj.appendChild(tdShiftEndingHour);
+          body.appendChild(trObj);
+        });
+      };
+
+      //-----------------
+      const redirectToLoginPage = () => {
+        window.location.href = "./login.html";
+      };
+      const redirectToEmployeesPage = () => {
+        window.location.href = "./employees.html";
+      };
+      const redirectToShiftsPage = () => {
+        window.location.href = "./shifts.html";
+      };
+      const redirectToHomePage = () => {
+        window.location.href = "./home.html";
+      };
+    </script>
+
+    <form id="myEditEmployeeForm">
+      <h4>Edit Employee</h4>
+      <br />
+      <label for="fname">First Name</label>
+      <input type="text" id="fname" name="fname" />
+      <br /><br />
+      <label for="lname">Last Name</label>
+      <input type="text" id="lname" name="lname" />
+      <br /><br />
+      <label for="ldepartment">Department</label>
+      <br />
+      <select id="mySelectDepartment" name="mySelectDepartment"></select>
+      <br /><br />
+      <label for="lstartworkyear">Start Work Year</label>
+      <input type="text" id="lstartworkyear" name="lstartworkyear" />
+      <br /><br />
+      <input type="submit" value="Update" />
+      <button type="button" id="delete-button">Delete</button>
+    </form>
+    <br /><br />
+
+    <h4 id="shiftsTitle">Shifts</h4>
+    <table class="table table-striped table-bordered">
+      <thead>
+        <tr>
+          <th scope="col"></th>
+          <th scope="col">Date</th>
+          <th scope="col">Starting Hour</th>
+          <th scope="col">Ending Hour</th>
+        </tr>
+      </thead>
+      <tbody id="tBody"></tbody>
+    </table>
+    <br />
+    <!-- Create Log Out and Log in buttons  -->
+    <button type="button" class="button" onclick="redirectToLoginPage()">
+      Log-Out
+    </button>
+    <button type="button" class="button" onclick="redirectToEmployeesPage()">
+      Employees
+    </button>
+    <button type="button" class="button" onclick="redirectToShiftsPage()">
+      Shifts
+    </button>
+    <button type="button" class="button" onclick="redirectToHomePage()">
+      Home
+    </button>
+    <button type="button" class="button" onclick="redirectToHomePage()">
+      Home
+    </button>
+  </body>
+</html>

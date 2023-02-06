@@ -1,0 +1,154 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel='stylesheet' href='../public/stylesheets/style.css' />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+      integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+      crossorigin="anonymous"
+    />
+    <title>Department</title>
+  </head>
+  <body onload="getData()">
+    <script>
+      const getData = async () => {
+        const token = sessionStorage["token"];
+        const departmentId = sessionStorage["departmentId"];
+        
+        const url = "http://localhost:8888/departments/" + departmentId;
+        const resp = await fetch(url, {
+          method: "get",
+          headers: { "x-access-token": token, "department-id": departmentId },
+        });
+
+        const dataFromRouter = await resp.json();
+        const currentUserFullName = dataFromRouter.currentUserFullName;
+        
+        renderCreditNum(dataFromRouter.creditNum);
+        renderCurrentUserFullName(currentUserFullName);
+        renderFormData(
+          dataFromRouter.departmentData,
+          dataFromRouter.employeesData
+        );
+
+        const form = document.getElementById("myForm");
+        form.addEventListener("submit", async function (event) {
+          const departmentName = document.getElementById("fname").value;          
+          const selectedManager =
+            document.getElementById("mySelectManager").value;          
+          event.preventDefault();
+          const departmentObjToSend = {
+            _id : departmentId,
+            obj : {
+              Name: departmentName,
+              Manager: selectedManager                        
+            }
+          };
+          
+          const resp = await fetch(url, {
+            method: "put",
+            headers: {
+              "Content-Type": "application/json",
+              "x-access-token": token          
+            },
+            body: JSON.stringify(departmentObjToSend)
+          });
+          window.location.href = "./employees.html";
+        });
+
+        const deleteButton = document.getElementById("delete-button");
+        deleteButton.addEventListener("click", async function (event) {
+          const selectedManager =
+            document.getElementById("mySelectManager").value;  
+          event.preventDefault();
+          const resp = await fetch(url, {
+            method: "delete",
+            headers: {
+              "x-access-token": token,
+              "department-id" :  departmentId,
+              "department-manager-id" : selectedManager
+            },
+          });
+          window.location.href = "./employees.html";
+        });
+      };
+
+      const renderCreditNum = (creditNum) => {
+        const creditNumDomElement = document.createElement("div");
+        creditNumDomElement.classList.add("credit-num");
+        creditNumDomElement.textContent = `Your credits: ${creditNum}`;
+        document.body.appendChild(creditNumDomElement);
+       };
+
+      //------ Rendering Logged-In User Full Name
+      const renderCurrentUserFullName = (currentUserFullName) => {
+        let userFullNameDomElement = document.createElement("div");
+        document.body.appendChild(userFullNameDomElement);
+        userFullNameDomElement.classList.add("class_list");
+        const h4 = document.createElement("h4");
+        h4.textContent = "Welcome, " + currentUserFullName;
+        userFullNameDomElement.appendChild(h4);
+      };
+
+      const renderFormData = (departmentData, employeesData) => {
+        const form = document.getElementById("myForm");
+        const select = document.getElementById("mySelectManager");
+        const inputs = form.elements;
+        inputs.fname.value = departmentData.Name;
+
+        employeesData.forEach((emp) => {
+          const option = document.createElement("option");
+          option.value = emp._id;
+          option.text = emp.First_Name + " " + emp.Last_Name;
+          if (departmentData.Manager == emp._id) {
+            option.selected = true;
+          }
+          select.add(option);
+        });
+      };
+
+      //------------------------
+      const redirectToLoginPage = () => {
+        window.location.href = "./login.html";
+      };
+      const redirectToAddDepartmentPage = () => {
+        window.location.href = "./addDepartment.html";
+      };
+      const redirectToDepartmentsPage = () => {
+        window.location.href = "./departments.html";
+      };
+      const redirectToHomePage = () => {
+        window.location.href = "./home.html";
+      };
+
+    </script>
+
+    <form id="myForm">
+      <h4>Edit Department</h4>
+      <br />
+      <label for="fname">Department Name</label>
+      <input type="text" id="fname" name="fname" />
+      <br /><br />
+      <label for="lmanager">Manager</label>
+      <br />
+      <select id="mySelectManager" name="mySelectManager"></select>
+      <br /><br />
+      <input type="submit" value="Update" />
+      <button type="button" id="delete-button">Delete</button>
+    </form> 
+    <br/>   
+    <!-- Create Log Out and Log in buttons  -->
+    <button type="button" class="button" onclick="redirectToLoginPage()">
+      Log-Out
+    </button>
+    <button type="button" class="button" onclick="redirectToDepartmentsPage()">
+      Departments
+    </button>
+    <button type="button" class="button" onclick="redirectToHomePage()">
+      Home
+    </button>
+  </body>
+</html>

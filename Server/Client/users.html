@@ -1,0 +1,156 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel='stylesheet' href='../public/stylesheets/style.css' />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+      integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+      crossorigin="anonymous"
+    />
+    <title>Users</title>
+  </head>
+  <body onload="getUsers()">
+    <script>
+      const getUsers = async () => {
+        const url = "http://localhost:8888/users";
+        const token = sessionStorage["token"];
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: { "x-access-token": token },
+        });
+        const dataFromRouter = await resp.json();
+        const currentUserFullName = dataFromRouter.currentUserFullName;
+
+        if(dataFromRouter.creditNum === 0){
+          swal("You don't have any credits for today. Please contact the administrator for more information.")
+          .then( () => {
+            window.location.href = "./login.html";          
+          });
+        }
+
+        renderCurrentUserFullName(currentUserFullName);
+        renderCreditNum(dataFromRouter.creditNum);
+        renderUsersData(
+          dataFromRouter.allUsersDB,
+          dataFromRouter.allUsersWS,
+          dataFromRouter.allActionsUsersJson.actions
+        );
+      };
+
+      const renderCurrentUserFullName = (currentUserFullName) => {
+        //------ Rendering Logged-In User Full Name
+        let userFullNameDomElement = document.createElement("div");
+        userFullNameDomElement.classList.add("class_list");
+        const h4 = document.createElement("h4");
+        h4.textContent = "Welcome, " + currentUserFullName;
+        userFullNameDomElement.appendChild(h4);
+        document.body.appendChild(userFullNameDomElement);
+      };
+
+      const renderCreditNum = (creditNum) => {
+        const creditNumDomElement = document.createElement("div");
+        creditNumDomElement.classList.add("credit-num");
+        creditNumDomElement.textContent = `Your credits: ${creditNum}`;
+        document.body.appendChild(creditNumDomElement);
+       };
+       
+
+      const renderUsersData = (allUsersDB, allUsersWS, allUsersJson) => {
+        let body = document.getElementById("tUsersBody");
+        allUsersWS.map((wsUser) => {
+          let tr = document.createElement("tr");
+          let td = document.createElement("td");
+          td.innerHTML = wsUser.username;
+
+          let currentDate = new Date().toISOString().slice(0, 10);
+          try {
+            let userActionsFilterArr = [];
+            allUsersJson.map((jsuser) => {
+              if (
+                jsuser.id == wsUser.id &&
+                jsuser.date.slice(0, 10) == currentDate
+              ) {
+                userActionsFilterArr.push(jsuser);
+              }
+            });
+
+            let tdMaxActionAllowed = document.createElement("td");
+            let tdActionAllowed = document.createElement("td");
+            if (userActionsFilterArr.length > 0){
+            tdMaxActionAllowed.innerHTML = userActionsFilterArr[0].maxActions;
+            let minActionAllowedRow = userActionsFilterArr.reduce(
+              (prev, curr) => {
+                return prev.actionAllowed < curr.actionAllowed ? prev : curr;
+              }
+              );
+              tdActionAllowed.innerHTML = minActionAllowedRow.actionAllowed;
+            }
+            else{
+              tdMaxActionAllowed.innerHTML = 0;
+              tdActionAllowed.innerHTML = 0;
+            }
+
+
+            tr.appendChild(td);
+            tr.appendChild(tdMaxActionAllowed);
+            tr.appendChild(tdActionAllowed);
+            body.appendChild(tr);
+          } catch (err) {
+            console.log(err);
+          }
+        });
+      };
+
+      //-----------------------------------------
+      const redirectToLoginPage = () => {
+        window.location.href = "./login.html";
+      };
+      const redirectToEmployeesPage = () => {
+        window.location.href = "./employees.html";
+      };
+      const redirectToShiftsPage = () => {
+        window.location.href = "./shifts.html";
+      };
+      const redirectToDepartmentsPage = () => {
+        window.location.href = "./departments.html";
+      };
+      const redirectToHomePage = () => {
+        window.location.href = "./home.html";
+      };
+      
+      //-----------------------------------------
+    </script>
+
+    <table class="table table-striped table-bordered">
+      <thead>
+        <tr>
+          <th scope="col">User Name</th>
+          <th scope="col">Maximum actions allowed</th>
+          <th scope="col">Current actions today</th>
+        </tr>
+      </thead>
+      <tbody id="tUsersBody"></tbody>
+    </table>
+
+    <!-- Create Log Out and Log in buttons  -->
+    <button type="button" class="button" onclick="redirectToLoginPage()">
+      Log-Out
+    </button>
+    <button type="button" class="button" onclick="redirectToEmployeesPage()">
+      Employees
+    </button>
+    <button type="button" class="button" onclick="redirectToDepartmentsPage()">
+      Departments
+    </button>
+    <button type="button" class="button" onclick="redirectToShiftsPage()">
+      Shifts
+    </button>
+    <button type="button" class="button" onclick="redirectToHomePage()">
+      Home
+    </button>
+  </body>
+</html>

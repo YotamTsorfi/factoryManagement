@@ -1,0 +1,310 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../public/stylesheets/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+      integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+      crossorigin="anonymous"
+    />
+    <title>Employees</title>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+  </head>
+  <body onload="getEmployees()">
+    <script>
+      const getEmployees = async () => {
+        const url = "http://localhost:8888/employees/shiftsanddepartments";
+        const token = sessionStorage["token"];
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: { "x-access-token": token },
+        });
+        const dataFromRouter = await resp.json();
+
+        if (dataFromRouter.creditNum === 0) {
+          swal(
+            "You don't have any credits for today. Please contact the administrator for more information."
+          ).then(() => {
+            window.location.href = "./login.html";
+          });
+        }
+
+        renderCreditNum(dataFromRouter.creditNum);
+        renderCurrentUserFullName(dataFromRouter.currentUserFullName);
+
+        let listOfEmployeesToRender = dataFromRouter.allEmployees;
+
+        renderEmployeesTable(
+          listOfEmployeesToRender,
+          dataFromRouter.currentUserFullName,
+          dataFromRouter.allDepartments,
+          dataFromRouter.allShifts
+        );
+
+        //------ Rendering a drop-down menu of all Departments
+        const select = document.getElementById("mySelect");
+        dataFromRouter.allDepartments.forEach(function (department) {
+          const option = document.createElement("option");
+          option.value = department._id;
+          option.text = department.Name;
+          select.add(option);
+        });
+
+        //------ Rendering the employees table on selected department
+        const selected = document.getElementById("mySelect");
+        selected.addEventListener("change", async function () {
+          let body = document.getElementById("tBody");
+          body.innerHTML = "";
+          const selectedOption = select.value;
+
+          if (selectedOption !== "") {
+            listOfEmployeesToRender = dataFromRouter.allEmployees.filter(
+              (emp) => emp.DepartmentID == selectedOption
+            );
+          }
+          if (selectedOption === "") {
+            listOfEmployeesToRender = dataFromRouter.allEmployees;
+          }
+
+          // Entry Point: 'http://localhost:8888/auth/chargecredit'
+          const creditUrl = "http://localhost:8888/auth/chargecredit";
+          const token = sessionStorage["token"];
+          const resp = await fetch(creditUrl, {
+            method: "get",
+            headers: { "x-access-token": token },
+          });
+          const data = await resp.json();
+          
+          if (data.creditNum === 0) {
+            swal(
+              "You don't have any credits for today. Please contact the administrator for more information."
+            ).then(() => {
+              window.location.href = "./login.html";
+            });
+          }
+          
+          const creditNumDomElement = document.querySelector(".credit-num");
+          creditNumDomElement.textContent = `Your credits: ${data.creditNum}`;
+
+          //Call the rendering Employees function which get the new data to render.
+          renderEmployeesTable(
+            listOfEmployeesToRender,
+            dataFromRouter.currentUserFullName,
+            dataFromRouter.allDepartments,
+            dataFromRouter.allShifts
+          );
+        });
+
+      };
+
+      const renderCurrentUserFullName = (currentUserFullName) => {
+        //------ Rendering Logged-In User Full Name
+        let userFullNameDomElement = document.createElement("div");
+        userFullNameDomElement.classList.add("class_list");
+        const h4 = document.createElement("h4");
+        h4.textContent = "Welcome, " + currentUserFullName;
+        userFullNameDomElement.appendChild(h4);
+        document.body.appendChild(userFullNameDomElement);
+      };
+
+      const renderCreditNum = (creditNum) => {
+        const creditNumDomElement = document.createElement("div");
+        creditNumDomElement.classList.add("credit-num");
+        creditNumDomElement.textContent = `Your credits: ${creditNum}`;
+        document.body.appendChild(creditNumDomElement);
+      };
+
+      //--------------------------------------------------------
+      const renderEmployeesTable = (
+        employeesObj,
+        currentUserFullName,
+        departmentsObj,
+        shiftsObj
+      ) => {
+        //------ Rendering an Employee Table
+        let body = document.getElementById("tBody");
+        employeesObj.map((employee) => {
+          let trObj = document.createElement("tr");
+
+          //Employee link (+ redirect + request on click) + Employee name
+          let tdEmployeeID = document.createElement("td");
+          let employeeLink = document.createElement("a");
+          const employeeHeaderText =
+            employee.First_Name + " " + employee.Last_Name;
+          employeeLink.setAttribute("href", "./editEmployee.html");
+          employeeLink.setAttribute(
+            "onclick",
+            `sendEmployeeData({employeeId: "${employee._id}"})`
+          );
+          employeeLink.appendChild(document.createTextNode(employeeHeaderText));
+          tdEmployeeID.appendChild(employeeLink);
+          trObj.appendChild(tdEmployeeID);
+
+          //Department link (+ redirect + request on click) + Department name
+          let tdDepartmentID = document.createElement("td");
+          departmentsObj.forEach((department) => {
+            if (department._id == employee.DepartmentID) {
+              let departmentLink = document.createElement("a");
+              const departmentHeaderText = department.Name;
+              departmentLink.setAttribute("href", "./editDepartment.html");
+              departmentLink.setAttribute(
+                "onclick",
+                `sendDepartmentData({departmentId : "${employee.DepartmentID}"})`
+              );
+              departmentLink.appendChild(
+                document.createTextNode(departmentHeaderText)
+              );
+              tdDepartmentID.appendChild(departmentLink);
+              trObj.appendChild(tdDepartmentID);
+            } else {
+              trObj.appendChild(tdDepartmentID);
+            }
+          });
+
+          //Rendering shifts lists
+          let tdShifts = document.createElement("td");
+          var ul = document.createElement("ul");
+
+          shiftsObj.map((shift) => {
+            let shiftsPerEmployee = [];
+            shift.Employees.forEach((empId) => {
+              if (empId == employee._id) {
+                shiftsPerEmployee.push(
+                  "Date: " +
+                    shift.Date.slice(0, 10) +
+                    ", Start at: " +
+                    shift.Starting_Hour +
+                    ":00" +
+                    ", End at: " +
+                    shift.Ending_Hour +
+                    ":00"
+                );
+              }
+            });
+
+            if (shiftsPerEmployee.length > 0) {
+              shiftsPerEmployee.forEach((shiftId) => {
+                var li = document.createElement("li");
+                li.innerHTML = shiftId;
+                ul.appendChild(li);
+              });
+            }
+          });
+
+          tdShifts.appendChild(ul);
+          trObj.appendChild(tdShifts);
+          body.appendChild(trObj);
+        });
+      };
+
+      //-----------------------------------------
+      const sendDepartmentData = async (dataObject) => {
+        sessionStorage["departmentId"] = dataObject.departmentId;
+
+        const url =
+          "http://localhost:8888/departments/" + dataObject.departmentId;
+        const token = sessionStorage["token"];
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: {
+            "x-access-token": token,
+            "department-id": dataObject.departmentId,
+          },
+        });
+
+        //Check the respond for user credits
+        if (resp.creditNum === 0) {
+          swal(
+            "You don't have any credits for today. Please contact the administrator for more information."
+          ).then(() => {
+            window.location.href = "./login.html";
+          });
+        }
+      };
+      //-----------------------------------------
+      const sendEmployeeData = async (dataObject) => {
+        sessionStorage["employeeId"] = dataObject.employeeId;
+
+        const url = "http://localhost:8888/employees/" + dataObject.employeeId;
+        const token = sessionStorage["token"];
+
+        const resp = await fetch(url, {
+          method: "get",
+          headers: {
+            "x-access-token": token,
+            "employee-id": dataObject.employeeId,
+          },
+        });
+
+        //Check the respond for user credits
+        if (resp.creditNum === 0) {
+          swal(
+            "You don't have any credits for today. Please contact the administrator for more information."
+          ).then(() => {
+            window.location.href = "./login.html";
+          });
+        }
+      };
+      //-----------------------------------------
+      const redirectToLoginPage = () => {
+        window.location.href = "./login.html";
+      };
+      const redirectToAddEmployeePage = () => {
+        window.location.href = "./addEmployee.html";
+      };
+      const redirectToDepartmentsPage = () => {
+        window.location.href = "./departments.html";
+      };
+      const redirectToShiftsPage = () => {
+        window.location.href = "./shifts.html";
+      };
+      const redirectToUsersPage = () => {
+        window.location.href = "./users.html";
+      };
+      const redirectToHomePage = () => {
+        window.location.href = "./home.html";
+      };
+      //-----------------------------------------
+    </script>
+
+    <select id="mySelect">
+      <option value="">Department</option>
+    </select>
+    <table class="table table-striped table-bordered">
+      <thead>
+        <tr>
+          <th scope="col">Full Name</th>
+          <th scope="col">Department</th>
+          <th scope="col">Shifts</th>
+        </tr>
+      </thead>
+      <tbody id="tBody"></tbody>
+    </table>
+
+    <!-- Create Log Out and Log in buttons  -->
+    <button type="button" class="button" onclick="redirectToLoginPage()">
+      Log-Out
+    </button>
+    <button type="button" class="button" onclick="redirectToAddEmployeePage()">
+      New Employee
+    </button>
+    <button type="button" class="button" onclick="redirectToDepartmentsPage()">
+      Departments
+    </button>
+    <button type="button" class="button" onclick="redirectToShiftsPage()">
+      Shifts
+    </button>
+    <button type="button" class="button" onclick="redirectToUsersPage()">
+      Users
+    </button>
+    <button type="button" class="button" onclick="redirectToHomePage()">
+      Home
+    </button>
+    <br /><br />
+  </body>
+</html>
